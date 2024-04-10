@@ -64,9 +64,11 @@ function EditToken({
     (key: string) => {
       return (e: React.ChangeEvent<HTMLInputElement>) => {
         setError(undefined);
-        let newValue: string | number = e.target.value;
+        let newValue: string | number | boolean = e.target.value;
         if (key === "coinDecimals") {
           newValue = parseInt(newValue);
+        } else if (key === "isWhiteListed") {
+          newValue = e.target.checked;
         }
 
         setModifiedToken((prev: any) => ({

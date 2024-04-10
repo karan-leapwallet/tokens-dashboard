@@ -6,17 +6,23 @@ import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { EditTokenModal } from "../components/EditToken";
 import classNames from "classnames";
 import axios from "axios";
+import { v4 as uuidv4 } from "uuid";
 
 type Props = {};
 
 async function publishChanges(changes: Record<string, any>) {
   try {
-    console.log("Publishing changes", changes);
+    const branchName = `new-branch-${uuidv4()}`;
+    console.log(
+      "Publishing changes to branch",
+      changes,
+      JSON.stringify(changes)
+    );
     const body = {
       event_type: "create-branch",
       client_payload: {
-        branch: "new-branch",
-        data: JSON.stringify(changes),
+        branch: branchName,
+        data: JSON.stringify(JSON.stringify(changes)),
       },
     };
     const res = await axios.post(
