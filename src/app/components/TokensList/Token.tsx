@@ -1,18 +1,20 @@
 import classNames from "classnames";
 import React from "react";
-
+import "material-symbols";
+import { formatCurrencyValue } from "@/app/utils/string";
 type Props = {
   token: any;
   tokenKey: string;
   isScolling: boolean;
   index: number;
+  onEdit: (tokenKey: string) => void;
 };
 
-function Token({ token, tokenKey, index, isScolling }: Props) {
+function Token({ token, tokenKey, index, isScolling, onEdit }: Props) {
   return (
     <div
       className={classNames(
-        "grid grid-cols-[1fr_1fr_1fr_1fr_1fr] items-center p-3 gap-4",
+        "grid grid-cols-[4fr_6fr_3fr_3fr_3fr_3fr_1fr] items-center p-3 gap-4",
         {
           "bg-white": index % 2 === 0,
           "bg-slate-200": index % 2 === 1,
@@ -47,7 +49,7 @@ function Token({ token, tokenKey, index, isScolling }: Props) {
       <div className="overflow-hidden text-left">
         {tokenKey !== token.coinMinimalDenom ? (
           <>
-            <div className="overflow-hidden whitespace-nowrap text-ellipsis">
+            <div className="overflow-hidden whitespace-nowrap text-ellipsis font-bold">
               {tokenKey}
             </div>
             <div className="overflow-hidden whitespace-nowrap text-ellipsis">
@@ -55,22 +57,38 @@ function Token({ token, tokenKey, index, isScolling }: Props) {
             </div>
           </>
         ) : (
-          <div className="overflow-hidden whitespace-nowrap text-ellipsis">
+          <div className="overflow-hidden whitespace-nowrap text-ellipsis font-bold">
             {tokenKey}
           </div>
         )}
       </div>
-      <div className="w-full text-center">
-        <div className="font-bold">{token.cgPrice}</div>
+      <div className="overflow-hidden text-left">
+        {token.cgPrice && (
+          <div className="font-bold">{formatCurrencyValue(token.cgPrice)}</div>
+        )}
         <div>{token.coinGeckoId}</div>
       </div>
-      <div className="w-full text-center">
-        <div className="font-bold">{token.astroPortPrice}</div>
-        <div>{token.astroPortAPIPrice}</div>
+      <div className="overflow-hidden text-left">
+        {token.astroPortPrice && (
+          <div className="font-bold">
+            {formatCurrencyValue(token.astroPortPrice)}
+          </div>
+        )}
+        {token.astroPortAPIPrice !== undefined && (
+          <div>{formatCurrencyValue(token.astroPortAPIPrice)}</div>
+        )}
       </div>
-      <div className="w-full flex justify-end items-center gap-2">
-        <div>{token.chain}</div>
-        <button>edit</button>
+      <div className="overflow-hidden text-left">{token.chain}</div>
+      <div className="overflow-hidden text-left">{token.type}</div>
+      <div className="overflow-hidden flex justify-end items-center gap-2">
+        <button
+          className="p-2 flex flex-row justify-center items-center"
+          onClick={() => {
+            onEdit(tokenKey);
+          }}
+        >
+          <div className="material-symbols-outlined text-blue-300">edit</div>
+        </button>
       </div>
     </div>
   );

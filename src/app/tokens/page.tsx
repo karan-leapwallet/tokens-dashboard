@@ -1,136 +1,187 @@
 "use client";
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import TokensList from "../components/TokensList";
-import axios from "axios";
-import useSWR from "swr";
+import { useTokens } from "../hooks/useTokens";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { EditTokenModal } from "../components/EditToken";
+import classNames from "classnames";
 
 type Props = {};
 
 function Page({}: Props) {
-  const { data: tokens, isLoading } = useSWR("tokens", async () => {
-    const res = await axios.get(
-      "https://assets.leapwallet.io/cosmos-registry/v1/denoms/base.json"
-    );
-    const tokens = res.data;
-    return tokens;
-  });
-
-  const { data: chainInfo, isLoading: isLoadingChainInfo } = useSWR(
-    "chainInfo",
-    async () => {
-      const res = await axios.get(
-        "https://assets.leapwallet.io/cosmos-registry/v1/elements-data/chains.json"
-      );
-      return res.data;
-    }
-  );
-
-  const chainKeyToIdMapping = useMemo(() => {
-    if (!chainInfo) return null;
-    return chainInfo.reduce((acc: any, chain: { key: any; chainId: any }) => {
-      return {
-        ...acc,
-        [chain.key]: chain.chainId,
-      };
-    }, {});
-  }, [chainInfo]);
-
-  const { data: prices, isLoading: isLoadingPrices } = useSWR(
-    "prices",
-    async () => {
-      const res = await axios.get(
-        "https://api.leapwallet.io/market/prices/ecosystem?currency=USD&ecosystem=cosmos-ecosystem"
-      );
-      return res.data;
-    }
-  );
-
-  const { data: astroPortAPI, isLoading: isLoadingAstroportAPI } = useSWR(
-    "pricesAPI-ASTROPORT",
-    async () => {
-      const res = await axios.get("https://api.astroport.fi/api/tokens");
-      return res.data?.reduce(
-        (
-          acc: Record<string, string>,
-          token: { denom: any; priceUSD: any }
-        ) => ({
-          ...acc,
-          [token.denom]: token.priceUSD,
-        }),
-        {}
-      );
-    }
-  );
-
-  const tokensWithPrices = React.useMemo(() => {
-    if (!tokens || !prices) return null;
-    return Object.keys(tokens).reduce((acc: Record<string, any>, key) => {
-      const token = tokens[key];
-      const cgPrice = prices?.[token?.coinGeckoId];
-      const chainId = chainKeyToIdMapping?.[token?.chain];
-      const astroPortPrice = prices?.[`${chainId}-${token.coinMinimalDenom}`];
-      const astroPortAPIPrice =
-        astroPortAPI?.[token.coinMinimalDenom] || undefined;
-      if (
-        astroPortAPIPrice &&
-        astroPortPrice &&
-        astroPortAPIPrice !== astroPortPrice
-      ) {
-        console.log(
-          "astroPortAPIPrice",
-          token,
-          astroPortPrice,
-          astroPortAPIPrice
-        );
-      }
-      return {
-        ...acc,
-        [key]: {
-          ...token,
-          astroPortPrice,
-          astroPortAPIPrice,
-          cgPrice,
-        },
-      };
-    }, {});
-  }, [tokens, prices, chainKeyToIdMapping, astroPortAPI]);
-
   const [searchedQuery, setSearchedQuery] = React.useState("");
+  const [typeFilter, setTypeFilter] = React.useState("native");
+  const [hasCgIdFilter, setHasCgIdFilter] = React.useState(false);
+  const [filterByChain, setFilterByChain] = React.useState("all");
+  const [selectTokenToEdit, setSelectTokenToEdit] = React.useState<string>();
+  const [isEditTokenModalOpen, setIsEditTokenModalOpen] = React.useState(false);
+  const [changeObject, setChangeObject] = React.useState(
+    {} as Record<string, any>
+  );
 
-  const filteredTokens = React.useMemo(() => {
-    if (!tokensWithPrices) return null;
-    return Object.keys(tokensWithPrices)
-      .filter((key) => {
-        const sanitizedQuery = searchedQuery.toLowerCase().trim();
+  const hasSomeChanges = useMemo(
+    () => changeObject && Object.keys(changeObject).length > 0,
+    [changeObject]
+  );
 
-        if (!sanitizedQuery) return true;
+  const debouncedSearchQuery = useDebouncedValue(searchedQuery, 300);
 
-        return [
-          tokensWithPrices[key].coinDenom?.toLowerCase(),
-          tokensWithPrices[key].name?.toLowerCase(),
+  const tokens = useTokens();
+
+  const filterChainsList = useMemo(() => {
+    if (!tokens) return null;
+
+    const _chains: Set<string> = new Set();
+    Object.values(tokens).forEach((token) => _chains.add(token.chain));
+
+    return ["all", ...Array.from(_chains).sort()] as string[];
+  }, [tokens]);
+
+  const filteredTokens = useMemo(() => {
+    if (!tokens) return null;
+    const sanitizedQuery = debouncedSearchQuery.toLowerCase().trim();
+
+    if (
+      !sanitizedQuery &&
+      typeFilter === "all" &&
+      !hasCgIdFilter &&
+      filterByChain === "all"
+    ) {
+      return tokens;
+    }
+
+    return Object.keys(tokens).reduce((acc: Record<string, any>, key) => {
+      let filterIn = true;
+
+      if (hasCgIdFilter && !tokens[key].coinGeckoId) return acc;
+
+      if (filterByChain !== "all" && tokens[key].chain !== filterByChain) {
+        return acc;
+      }
+
+      if (
+        typeFilter !== "all" &&
+        (tokens[key].type !== typeFilter ||
+          (typeFilter === "others" &&
+            ["native", "ibc", "cw20", "factory", "cw20_all"].includes(
+              tokens[key].type
+            )))
+      ) {
+        return acc;
+      }
+
+      if (sanitizedQuery) {
+        filterIn = [
+          tokens[key].coinDenom?.toLowerCase(),
+          tokens[key].name?.toLowerCase(),
           key?.toLowerCase(),
-          tokensWithPrices[key].coinMinimalDenom?.toLowerCase(),
-          tokensWithPrices[key].chain?.toLowerCase(),
+          tokens[key].coinMinimalDenom?.toLowerCase(),
+          tokens[key].chain?.toLowerCase(),
         ]?.some((_d) => _d?.includes(sanitizedQuery) || false);
-      })
-      .reduce((acc, key) => {
-        return {
-          ...acc,
-          [key]: tokensWithPrices[key],
-        };
-      }, {});
-  }, [tokensWithPrices, searchedQuery]);
+      }
+
+      if (!filterIn) return acc;
+      return {
+        ...acc,
+        [key]: tokens[key],
+      };
+    }, {});
+  }, [tokens, debouncedSearchQuery, typeFilter, hasCgIdFilter, filterByChain]);
+
+  const selectedToken = useMemo(() => {
+    if (!selectTokenToEdit || !tokens) return undefined;
+    return tokens[selectTokenToEdit];
+  }, [selectTokenToEdit, tokens]);
+
+  const onPublishChanges = useCallback(() => {
+    console.log("Publishing changes", changeObject);
+  }, [changeObject]);
 
   return (
-    <div className="h-[100vh] flex flex-col overflow-hidden p-6 gap-4">
-      <input
-        type="text"
-        placeholder="Search"
-        value={searchedQuery}
-        onChange={(e) => setSearchedQuery(e.target.value)}
-        className="block w-full p-4 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 text-base focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+    <div className="h-[100vh] flex flex-col overflow-hidden p-6">
+      <div className="flex w-full justify-start items-start flex-col gap-4">
+        <div className="flex w-full flex-row justify-start gap-4 items-stretch">
+          <input
+            type="text"
+            placeholder="Search"
+            value={searchedQuery}
+            onChange={(e) => setSearchedQuery(e.target.value)}
+            className="block w-full p-4 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 text-base focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+          />
+          <button
+            className={classNames(
+              "flex shrink-0 bg-blue-500 rounded-lg text-white px-6 py-2 flex-row justify-center items-center gap-2",
+              {
+                "opacity-40 cursor-not-allowed": !hasSomeChanges,
+              }
+            )}
+            disabled={!hasSomeChanges}
+            onClick={onPublishChanges}
+          >
+            Publish <span className="material-symbols-outlined">public</span>
+          </button>
+        </div>
+        <div className="flex w-full flex-row justify-between items-end">
+          <label className="gap-2 flex">
+            <span className="font-bold">Filter by type</span>
+            <select
+              onChange={(e) => setTypeFilter(e.target.value)}
+              value={typeFilter}
+            >
+              <option value="all">All</option>
+              <option value="native">Native</option>
+              <option value="ibc">IBC</option>
+              <option value="cw20">CW20</option>
+              <option value="factory">Factory</option>
+              <option value="cw20_all">CW20 Auto fetched</option>
+              <option value="others">Others</option>
+            </select>
+          </label>
+
+          <label className="gap-2 flex">
+            <span className="font-bold">Filter by chain</span>
+            <select
+              onChange={(e) => setFilterByChain(e.target.value)}
+              value={filterByChain}
+            >
+              {filterChainsList?.map((chain) => (
+                <option key={chain} value={chain}>
+                  {chain}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="gap-1 flex">
+            <input
+              type="checkbox"
+              checked={hasCgIdFilter}
+              onChange={(e) => setHasCgIdFilter(e.target.checked)}
+            />
+            <span className="font-bold">Has CoinGecko ID</span>
+          </label>
+        </div>
+      </div>
+
+      <TokensList
+        tokens={filteredTokens ?? {}}
+        onEdit={(tokenKey) => {
+          setIsEditTokenModalOpen(true);
+          setSelectTokenToEdit(tokenKey);
+        }}
       />
-      <TokensList tokens={filteredTokens ?? {}} />
+      {isEditTokenModalOpen && (
+        <EditTokenModal
+          onClose={() => {
+            setIsEditTokenModalOpen(false);
+            setSelectTokenToEdit(undefined);
+          }}
+          changeObject={changeObject}
+          setChangeObject={setChangeObject}
+          selectedToken={selectedToken}
+          selectedTokenKey={selectTokenToEdit ?? ""}
+        />
+      )}
     </div>
   );
 }

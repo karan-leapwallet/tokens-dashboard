@@ -16,4 +16,27 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+  .scrollbar::-webkit-scrollbar {
+    width: 5px;
+    height: 25px;
+  }
+
+  .scrollbar::-webkit-scrollbar-track {
+    border-radius: 100vh;
+    /* background: #212121; */
+  }
+
+  .scrollbar::-webkit-scrollbar-thumb {
+    /* background: #212121; */
+    border-radius: 100vh;
+  }
+
+  .scrollbar:hover::-webkit-scrollbar-thumb {
+    background: #d6d6d6;
+    border-radius: 100vh;
+  }
+
+  .scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #b8b8b8;
+  }
 }
