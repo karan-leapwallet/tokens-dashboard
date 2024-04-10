@@ -30,7 +30,7 @@ async function publishChanges(changes: Record<string, any>) {
       body,
       {
         headers: {
-          Authorization: "Bearer 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",
+          Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
           "X-GitHub-Api-Version": "2022-11-28",
         },
       }
