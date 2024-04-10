@@ -5,8 +5,37 @@ import { useTokens } from "../hooks/useTokens";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { EditTokenModal } from "../components/EditToken";
 import classNames from "classnames";
+import axios from "axios";
 
 type Props = {};
+
+async function publishChanges(changes: Record<string, any>) {
+  try {
+    console.log("Publishing changes", changes);
+    const body = {
+      event_type: "create-branch",
+      client_payload: {
+        branch: "new-branch",
+        data: JSON.stringify(changes),
+      },
+    };
+    const res = await axios.post(
+      "https://api.github.com/repos/karan-leapwallet/cosmos-chain-registry/dispatches",
+      body,
+      {
+        headers: {
+          Authorization: "Bearer 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",
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      }
+    );
+    console.log(res.data);
+    return res.data;
+  } catch (e) {
+    console.error(e);
+    return e;
+  }
+}
 
 function Page({}: Props) {
   const [searchedQuery, setSearchedQuery] = React.useState("");
@@ -94,7 +123,8 @@ function Page({}: Props) {
   }, [selectTokenToEdit, tokens]);
 
   const onPublishChanges = useCallback(() => {
-    console.log("Publishing changes", changeObject);
+    const res = publishChanges(changeObject);
+    console.log(res);
   }, [changeObject]);
 
   return (
