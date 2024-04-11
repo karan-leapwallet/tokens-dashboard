@@ -103,7 +103,14 @@ function EditToken({
         };
       });
     }
-  }, [modifiedToken, selectedToken, selectedTokenKey, setChangeObject]);
+    onClose();
+  }, [
+    modifiedToken,
+    selectedToken,
+    selectedTokenKey,
+    setChangeObject,
+    onClose,
+  ]);
 
   return (
     <div
