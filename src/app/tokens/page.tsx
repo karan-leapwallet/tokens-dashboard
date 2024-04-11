@@ -1,47 +1,14 @@
 "use client";
-import React, { useCallback, useMemo } from "react";
-import TokensList from "../components/TokensList";
-import { useTokens } from "../hooks/useTokens";
-import { useDebouncedValue } from "../hooks/useDebouncedValue";
-import { EditTokenModal } from "../components/EditToken";
 import classNames from "classnames";
-import axios from "axios";
-import { v4 as uuidv4 } from "uuid";
+import React, { useCallback, useMemo } from "react";
+import { Toaster } from "react-hot-toast";
+import { EditTokenModal } from "../components/EditToken";
+import PublishChangesModal from "../components/PublishChanges";
+import TokensList from "../components/TokensList";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { useTokens } from "../hooks/useTokens";
 
 type Props = {};
-
-async function publishChanges(changes: Record<string, any>) {
-  try {
-    const branchName = `new-branch-${uuidv4()}`;
-    console.log(
-      "Publishing changes to branch",
-      changes,
-      JSON.stringify(changes)
-    );
-    const body = {
-      event_type: "create-branch",
-      client_payload: {
-        branch: branchName,
-        data: JSON.stringify(JSON.stringify(changes)),
-      },
-    };
-    const res = await axios.post(
-      "https://api.github.com/repos/karan-leapwallet/cosmos-chain-registry/dispatches",
-      body,
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_GITHUB_TOKEN}`,
-          "X-GitHub-Api-Version": "2022-11-28",
-        },
-      }
-    );
-    console.log(res.data);
-    return res.data;
-  } catch (e) {
-    console.error(e);
-    return e;
-  }
-}
 
 function Page({}: Props) {
   const [searchedQuery, setSearchedQuery] = React.useState("");
@@ -50,6 +17,8 @@ function Page({}: Props) {
   const [filterByChain, setFilterByChain] = React.useState("all");
   const [selectTokenToEdit, setSelectTokenToEdit] = React.useState<string>();
   const [isEditTokenModalOpen, setIsEditTokenModalOpen] = React.useState(false);
+  const [isPublishChangesModalOpen, setIsPublishChangesModalOpen] =
+    React.useState(false);
   const [changeObject, setChangeObject] = React.useState(
     {} as Record<string, any>
   );
@@ -129,9 +98,8 @@ function Page({}: Props) {
   }, [selectTokenToEdit, tokens]);
 
   const onPublishChanges = useCallback(() => {
-    const res = publishChanges(changeObject);
-    console.log(res);
-  }, [changeObject]);
+    setIsPublishChangesModalOpen(true);
+  }, []);
 
   return (
     <div className="h-[100vh] flex flex-col overflow-hidden p-6">
@@ -218,6 +186,17 @@ function Page({}: Props) {
           selectedTokenKey={selectTokenToEdit ?? ""}
         />
       )}
+      {isPublishChangesModalOpen && (
+        <PublishChangesModal
+          tokens={tokens}
+          onClose={() => {
+            setIsPublishChangesModalOpen(false);
+          }}
+          changeObject={changeObject}
+          setChangeObject={setChangeObject}
+        />
+      )}
+      <Toaster />
     </div>
   );
 }

@@ -116,7 +116,7 @@ function EditToken({
         <div className="w-full flex justify-between items-center">
           <div className="font-bold text-lg">Token Info</div>
           <button
-            className="flex flex-row jhustify-center items-center"
+            className="flex flex-row justify-center items-center"
             onClick={() => {
               onClose();
             }}
