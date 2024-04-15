@@ -13,6 +13,15 @@ export function useTokens() {
     return tokens;
   });
 
+  const { data: whiteListedFactoryTokens, isLoading: isLoadingFactoryTokens } =
+    useSWR("factory-tokens", async () => {
+      const res = await axios.get(
+        "https://assets.leapwallet.io/cosmos-registry/v1/denoms/whitelist-factory.json"
+      );
+      const tokens = res.data;
+      return tokens;
+    });
+
   const { data: cw20Tokens, isLoading: isLoadingCw20Tokens } = useSWR(
     "cw20-tokens",
     async () => {
@@ -47,6 +56,12 @@ export function useTokens() {
     Object.keys(baseTokens ?? {}).forEach((key: string) => {
       if (!baseTokens?.[key]) return;
 
+      const isWhiteListed = key.startsWith("factory/")
+        ? whiteListedFactoryTokens?.[key]
+          ? true
+          : false
+        : undefined;
+
       tokens[key] = {
         ...baseTokens[key],
         type: key.startsWith("ibc/")
@@ -54,6 +69,7 @@ export function useTokens() {
           : key.startsWith("factory/")
           ? "factory"
           : "native",
+        isWhiteListed,
       };
     });
 
@@ -78,7 +94,7 @@ export function useTokens() {
     });
 
     return tokens;
-  }, [baseTokens, cw20AllTokens, cw20Tokens]);
+  }, [baseTokens, cw20AllTokens, cw20Tokens, whiteListedFactoryTokens]);
 
   const { data: chainInfo, isLoading: isLoadingChainInfo } = useSWR(
     "chainInfo",
