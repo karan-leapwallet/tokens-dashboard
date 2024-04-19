@@ -5,29 +5,29 @@ import toast from "react-hot-toast";
 import { Props, publishChanges } from ".";
 
 export function PrePublishView({
+  apiKey,
   onClose,
   changeObject,
   onPublishSuccess,
   tokens,
   setChangeObject,
   branchName,
-  githubToken,
-  existingPR,
   setBranchPrefix,
+  imagesToUpload,
   setBranchSuffix,
-  setGithubToken,
+  setImagesToUpload,
   branchPrefix,
   branchSuffix,
 }: Props & {
-  existingPR: any;
-  githubToken: string;
+  apiKey: string;
   branchName: string;
   branchPrefix: string;
   branchSuffix: string;
-  onPublishSuccess: () => void;
+  imagesToUpload: Record<string, any>;
+  setImagesToUpload: React.Dispatch<React.SetStateAction<Record<string, any>>>;
+  onPublishSuccess: (pr: any) => void;
   setBranchPrefix: React.Dispatch<React.SetStateAction<string>>;
   setBranchSuffix: React.Dispatch<React.SetStateAction<string>>;
-  setGithubToken: React.Dispatch<React.SetStateAction<string>>;
 }) {
   const [summaryOpen, setSummaryOpen] = React.useState(false);
   const [isPublishing, setIsPublishing] = React.useState(false);
@@ -35,8 +35,8 @@ export function PrePublishView({
   const [publishError, setPublishError] = React.useState<string | null>(null);
 
   const isAccepted = useMemo(() => {
-    return termsAccepted && githubToken;
-  }, [githubToken, termsAccepted]);
+    return termsAccepted;
+  }, [termsAccepted]);
 
   useEffect(() => {
     setBranchSuffix(uuidv4());
@@ -58,14 +58,6 @@ export function PrePublishView({
     [setBranchPrefix]
   );
 
-  const onTokenChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setPublishError(null);
-      setGithubToken(e.target.value);
-    },
-    [setGithubToken]
-  );
-
   const onSuffixChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setPublishError(null);
@@ -84,9 +76,15 @@ export function PrePublishView({
 
     async function triggerPublish() {
       try {
-        await publishChanges(changeObject, githubToken, branchName);
+        const pr = await publishChanges(
+          apiKey,
+          changeObject,
+          imagesToUpload,
+          branchName
+        );
         setChangeObject({});
-        onPublishSuccess();
+        setImagesToUpload({});
+        onPublishSuccess(pr);
       } catch (e) {
         console.error(e);
         toast.error(
@@ -104,9 +102,10 @@ export function PrePublishView({
       }
     }
   }, [
+    apiKey,
     branchName,
     changeObject,
-    githubToken,
+    imagesToUpload,
     isAccepted,
     onPublishSuccess,
     setChangeObject,
@@ -174,17 +173,6 @@ export function PrePublishView({
             </label>
 
             <label className="gap-2 flex flex-col">
-              <span className="font-bold">Github token</span>
-              <input
-                type="password"
-                value={githubToken}
-                onChange={onTokenChange}
-                className="block px-4 py-2 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 text-base focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                placeholder="Github token"
-              />
-            </label>
-
-            <label className="gap-2 flex flex-col">
               <span className="font-bold">Branch suffix</span>
               <input
                 type="text"
@@ -198,26 +186,6 @@ export function PrePublishView({
           <div className="flex flex-row justify-between items-center mt-4 gap-2">
             <div className="font-bold text-lg">Branch name</div>
             <div className="text-lg">{branchName}</div>
-          </div>
-
-          <div className="flex flex-row justify-between items-center mt-4 gap-2">
-            <div className="font-bold text-lg">
-              PR{" "}
-              <span className="font-medium">
-                (Requires both - branch name and github token)
-              </span>
-            </div>
-            {existingPR?.html_url ? (
-              <a
-                href={existingPR?.html_url}
-                target="_blank"
-                className="text-blue-500 underline"
-              >
-                {existingPR?.html_url}
-              </a>
-            ) : (
-              "-"
-            )}
           </div>
 
           {publishError && (

@@ -1,6 +1,6 @@
 import { formatCurrencyValue } from "@/app/utils/string";
 import classNames from "classnames";
-import React, { useCallback, useMemo } from "react";
+import React, { ChangeEvent, useCallback, useMemo } from "react";
 import { isEqual } from "lodash-es";
 
 type Props = {
@@ -8,6 +8,8 @@ type Props = {
   selectedToken: any;
   changeObject: any;
   selectedTokenKey: string;
+  imagesToUpload: Record<string, any>;
+  setImagesToUpload: React.Dispatch<React.SetStateAction<Record<string, any>>>;
   setChangeObject: React.Dispatch<React.SetStateAction<Record<string, any>>>;
 };
 
@@ -49,16 +51,24 @@ function EditToken({
   selectedTokenKey,
   changeObject,
   setChangeObject,
+  imagesToUpload,
+  setImagesToUpload,
 }: Props) {
   const token = useMemo(() => {
     return changeObject?.[selectedTokenKey] ?? selectedToken;
   }, [selectedToken, changeObject, selectedTokenKey]);
 
   const [modifiedToken, setModifiedToken] = React.useState(token);
+  const imageRef = React.useRef<HTMLInputElement>(null);
   const [error, setError] = React.useState<string>();
   const isModified = useMemo(() => {
     return !isEqual(token, modifiedToken);
   }, [modifiedToken, token]);
+  const [uploadedIcon, setUploadedIcon] = React.useState<string | undefined>(
+    imagesToUpload?.[selectedTokenKey]?.fileBlob
+      ? URL.createObjectURL(imagesToUpload?.[selectedTokenKey]?.fileBlob)
+      : undefined
+  );
 
   const onFieldChange = useCallback(
     (key: string) => {
@@ -78,6 +88,58 @@ function EditToken({
       };
     },
     [setModifiedToken]
+  );
+
+  const handleRemoveImage = useCallback(() => {
+    if (imageRef.current && uploadedIcon) {
+      imageRef.current.value = "";
+      setUploadedIcon(undefined);
+      setImagesToUpload((prev) => {
+        const newImages = { ...prev };
+        delete newImages[selectedTokenKey];
+        return newImages;
+      });
+      setModifiedToken((prev: any) => {
+        return {
+          ...prev,
+          icon: selectedToken?.icon,
+        };
+      });
+    }
+  }, [selectedToken?.icon, selectedTokenKey, setImagesToUpload, uploadedIcon]);
+
+  const onImageChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      const imageFile = e?.target?.files?.[0] as Blob;
+      const imageName = e?.target?.files?.[0]?.name;
+      setUploadedIcon(URL.createObjectURL(imageFile));
+      var reader = new FileReader();
+      reader.onloadend = function () {
+        if (!(typeof reader.result === "string")) return;
+        var base64result = reader.result?.substring(
+          reader.result?.indexOf(",") + 1
+        );
+        setImagesToUpload((prev) => {
+          return {
+            ...prev,
+            [selectedTokenKey]: {
+              fileBlob: imageFile,
+              content: base64result,
+              name: imageName,
+            },
+          };
+        });
+
+        setModifiedToken((prev: any) => {
+          return {
+            ...prev,
+            icon: `https://assets.leapwallet.io/cosmos-registry/v1/images/${imageName}`,
+          };
+        });
+      };
+      reader.readAsDataURL(imageFile as Blob);
+    },
+    [selectedTokenKey, setImagesToUpload]
   );
 
   const onSaveClick = useCallback(() => {
@@ -158,9 +220,16 @@ function EditToken({
                 <label className="font-bold">Icon URL</label>
                 <input
                   type="text"
+                  readOnly={!!uploadedIcon}
                   value={modifiedToken.icon}
                   onChange={onFieldChange("icon")}
-                  className="p-2 border border-gray-300 rounded-lg"
+                  className={classNames(
+                    "p-2 border border-gray-300 rounded-lg",
+                    {
+                      "cursor-not-allowed bg-slate-200 outline-none":
+                        !!uploadedIcon,
+                    }
+                  )}
                 />
               </div>
             </div>
@@ -290,11 +359,23 @@ function EditToken({
               <div className="flex gap-2 items-center">
                 <input
                   type="file"
+                  accept="image/*"
+                  ref={imageRef}
+                  onChange={onImageChange}
                   className="p-2 w-[238px] border border-gray-300 rounded-lg"
                 />
-                <button className="rounded-full h-10 w-10 bg-blue-600 material-symbols-outlined text-white">
-                  upload
-                </button>
+                {uploadedIcon ? (
+                  <button
+                    onClick={handleRemoveImage}
+                    className={classNames(
+                      "rounded-full h-10 w-10 border-2 border-red-600 material-symbols-outlined text-red-600"
+                    )}
+                  >
+                    close
+                  </button>
+                ) : (
+                  <div className="w-[40px]"></div>
+                )}
               </div>
             </div>
           </div>
@@ -304,7 +385,7 @@ function EditToken({
             {
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={modifiedToken.icon ?? "generic-token.svg"}
+                src={uploadedIcon ?? "generic-token.svg"}
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = "generic-token.svg";
                 }}

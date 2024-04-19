@@ -1,12 +1,16 @@
-import React from "react";
+import React, { useMemo } from "react";
 
 export function PostPublishView({
-  prUrl,
+  pr,
   onClose,
 }: {
-  prUrl: string;
+  pr: any;
   onClose: () => void;
 }) {
+  const prUrl = useMemo(() => {
+    return pr?.html_url;
+  }, [pr]);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-row justify-between items-center gap-2">
