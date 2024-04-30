@@ -33,6 +33,7 @@ export function PrePublishView({
   const [isPublishing, setIsPublishing] = React.useState(false);
   const [termsAccepted, setTermsAccepted] = React.useState(false);
   const [publishError, setPublishError] = React.useState<string | null>(null);
+  const [branchNameCopied, setBranchNameCopied] = React.useState(false);
 
   const isAccepted = useMemo(() => {
     return termsAccepted;
@@ -185,7 +186,22 @@ export function PrePublishView({
 
           <div className="flex flex-row justify-between items-center mt-4 gap-2">
             <div className="font-bold text-lg">Branch name</div>
-            <div className="text-lg">{branchName}</div>
+            <div className="text-lg">
+              {branchName}
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(branchName);
+                  toast.success("Branch name copied to clipboard");
+                  setBranchNameCopied(true);
+                  setTimeout(() => {
+                    setBranchNameCopied(false);
+                  }, 1000);
+                }}
+                className="material-symbols-outlined ml-1 !text-[18px] !leading-[20px]"
+              >
+                {branchNameCopied ? "done" : "content_copy"}
+              </button>
+            </div>
           </div>
 
           {publishError && (
