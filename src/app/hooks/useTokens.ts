@@ -4,23 +4,43 @@ import { useMemo } from "react";
 import useSWR from "swr";
 import { getCw20Tokens, getCw20TokensSupportingChains } from "../utils/tokens";
 
-export function useTokens() {
-  const { data: baseTokens, isLoading } = useSWR("tokens", async () => {
-    const res = await axios.get(
-      "https://assets.leapwallet.io/cosmos-registry/v1/denoms/base.json"
-    );
-    const tokens = res.data;
-    return tokens;
-  });
+const globalSWRConfig = {
+  revalidateOnFocus: false,
+  revalidateOnReconnect: false,
+  refreshInterval: 1000 * 60 * 30,
+};
 
-  const { data: whiteListedFactoryTokens, isLoading: isLoadingFactoryTokens } =
-    useSWR("factory-tokens", async () => {
+export function useTokens() {
+  const { data: baseTokens, isLoading } = useSWR(
+    "tokens",
+    async () => {
       const res = await axios.get(
-        "https://assets.leapwallet.io/cosmos-registry/v1/denoms/whitelist-factory.json"
+        "https://assets.leapwallet.io/cosmos-registry/v1/denoms/base.json"
       );
       const tokens = res.data;
       return tokens;
-    });
+    },
+    {
+      ...globalSWRConfig,
+    }
+  );
+
+  const { data: whiteListedFactoryTokens, isLoading: isLoadingFactoryTokens } =
+    useSWR(
+      "factory-tokens",
+      async () => {
+        const res = await axios.get(
+          "https://assets.leapwallet.io/cosmos-registry/v1/denoms/whitelist-factory.json"
+        );
+        const tokens = res.data;
+        return tokens;
+      },
+      {
+        revalidateOnFocus: false,
+        revalidateOnReconnect: false,
+        refreshInterval: 1000 * 60 * 5,
+      }
+    );
 
   const { data: cw20Tokens, isLoading: isLoadingCw20Tokens } = useSWR(
     "cw20-tokens",
@@ -33,6 +53,9 @@ export function useTokens() {
         console.error(e);
         return {};
       }
+    },
+    {
+      ...globalSWRConfig,
     }
   );
 
@@ -47,6 +70,9 @@ export function useTokens() {
         console.error(e);
         return {};
       }
+    },
+    {
+      ...globalSWRConfig,
     }
   );
 
@@ -103,6 +129,9 @@ export function useTokens() {
         "https://assets.leapwallet.io/cosmos-registry/v1/elements-data/chains.json"
       );
       return res.data;
+    },
+    {
+      ...globalSWRConfig,
     }
   );
 
@@ -123,6 +152,9 @@ export function useTokens() {
         "https://api.leapwallet.io/market/prices/ecosystem?currency=USD&ecosystem=cosmos-ecosystem"
       );
       return res.data;
+    },
+    {
+      ...globalSWRConfig,
     }
   );
 
@@ -140,6 +172,9 @@ export function useTokens() {
         }),
         {}
       );
+    },
+    {
+      ...globalSWRConfig,
     }
   );
 
